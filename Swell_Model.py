@@ -15,7 +15,7 @@ def build_simple_model():
 
 def tide_finder(df, td, year): 
     Dirs = []
-    Tide = []
+    t_str = []
     m = 1
     ind_save = 0
     print("Starting tide estimator for", year)
@@ -28,60 +28,62 @@ def tide_finder(df, td, year):
         while d <= ld:
             boo2 = t0['Day']==d
             t2 = t0[boo2]
-            Zmins = [t2['Hour']+t2['Min']/60][0]
-            boo1 = td['Month']==m
+            Zmins = [t2['Hour']*60+t2['Min']][0] # This is for buoy data calcs
+            boo1 = td['Month']==m # this and below is for tide data 
             boo2 = td['Day']==d
             t1 = td[boo1]
             t2 = t1[boo2]
-            start_tide = t2['S'][:1].to_list()[0] 
-            end_tide = t2['S'][-1:].to_list()[0]
-            if d < ld:
+            #start_tide = t2['S'][:1].to_list()[0] 
+            #end_tide = t2['S'][-1:].to_list()[0]
+            # Finds tide turning points for the last tide the day before and the first tide the next day
+            # First finds the next days tide point
+            if d < ld: # Concerns majority of cases
                 boo3 = td['Day']==d+1
                 t3 = t1[boo3][:1]
-            elif d == ld and m!=12:
+            elif d == ld and m!=12: # Accounts for last day of the month edge case
                 boo3 = td['Month']==m+1
                 boo4 = td['Day']==1
                 t25 = td[boo3]
                 t3 = t25[boo4][:1]
-            else: 
+            else: # Accounts for Dec 31 edge case
                 boo3 = td['Month']==1
                 boo4 = td['Day']==1
-                boo5 = td['S']!=end_tide
+                #boo5 = td['S']!=end_tide
                 t233 = td[boo3]
-                t266 = t233[boo4][:2]
-                t3 = t266[boo5]
-                
-            if d > 1:
+                t266 = t233[boo4][:1]
+                t3 = t266 #[boo5]
+            
+            # Second finds yesterdays final tide point    
+            if d > 1: # Concerns majority of cases
                 boo3 = td['Day']==d-1
                 t4 = t1[boo3][-1:]
-            elif d==1 and m!=1:
+            elif d==1 and m!=1: # Accounts for first day of the month edge case
                 boo3 = td['Month']==m-1
                 t25 = td[boo3]
                 tld = max(t25['Day'])
                 boo4 = t25['Day']==tld
                 t4 = t25[boo4]
-            else:
+            else: # Accounts for Jan. 1 edge case
                 boo3 = td['Month']==12
                 boo4 = td['Day']==31
-                boo5 = td['S']!=start_tide
+                #boo5 = td['S']!=start_tide
                 t233 = td[boo3]
-                t266 = t233[boo4][-2:]
-                t4 = t266[boo5]
+                t266 = t233[boo4][-1:]
+                t4 = t266 #[boo5]
                 
-    
-            t3['TH'] = round(t3['Hour']+24,2)
-            t4['TH'] = round(t4['Hour']-24,2)
-            t2['TH'] = round(t2['Hour']+t2['Min']/60,2)
+            t3['TM'] = round((t3['Hour']+24)*60+t3['Min'],2) # Day after tide time
+            t4['TM'] = -round((24-t4['Hour'])*60-t4['Min'],2) # Day before tide time
+            t2['TM'] = round(t2['Hour']*60+t2['Min'],2)
             t2 = pd.concat([t4,t2,t3])
-            Tmins = t2['TH']
+            Tmins = t2['TM']
             for i in range(0,len(Zmins)):
                 diffs = round(Tmins - Zmins[i+ind_save],2)
                 point1 = min(diffs[diffs>0])
                 point2 = min(abs(diffs[diffs<0]))
                 targ = round(point1 + Zmins[i+ind_save],2)
                 prev = round(Zmins[i+ind_save] - point2,2)
-                new_t = t2[t2['TH']==targ]
-                prev_t = t2[t2['TH']==prev]
+                new_t = t2[t2['TM']==targ]
+                prev_t = t2[t2['TM']==prev]
                 ntp = new_t['S'].to_list()[0]
                 ptp = prev_t['S'].to_list()[0]
                 nth = new_t['H'].to_list()[0]
@@ -89,20 +91,75 @@ def tide_finder(df, td, year):
                 lims = abs(nth - pth)
                 if ptp=='L':
                     Dirs.append(0)
-                    etide = pth + point2*lims/12
                 if ptp=='H':
                     Dirs.append(1)
-                    etide = pth - point2*lims/12
-            
-                Tide.append(round(etide,2))
             ind_save += len(Zmins)
             d += 1
             
         m += 1
-    lib = {'Tide':Tide,'Dirs':Dirs}
+        
+    rpt = 0
+    for x in range(1,len(Dirs)):
+         # reading per tide direction
+        templist = []
+        if Dirs[x] == Dirs[x-1]:
+            rpt += 1
+        else:
+            rpt += 1
+            ttp = rpt/2 # time to peak
+            y = 1
+            if ttp == int(ttp):
+                while y <= ttp:
+                    templist.append(y/ttp)
+                    y+=1
+                while y > 0:
+                    y-=1
+                    templist.append(y/ttp)
+            if ttp != int(ttp):
+                ttp += 0.5
+                while y <= ttp:
+                    templist.append(y/ttp)
+                    y+=1
+                y-=1
+                while y > 0:
+                    y-=1
+                    templist.append(y/ttp)
+            rpt = 0
+
+
+        if x == len(Dirs)-1:
+            rpt += 1
+            ttp = rpt/2 # time to peak
+            y = 1
+            if ttp == int(ttp):
+                while y <= ttp:
+                    templist.append(y/ttp)
+                    y+=1
+                while y > 0:
+                    y-=1
+                    templist.append(y/ttp)
+            if ttp != int(ttp):
+                ttp += 0.5
+                while y <= ttp:
+                    templist.append(y/ttp)
+                    y+=1
+                y-=1
+                while y > 0:
+                    y-=1
+                    templist.append(y/ttp)
+
+        for val in templist[:-1]:
+            t_str.append(val)
+
+
+                    
+            
+        
+    lib = {'Dirs':Dirs,'STR':t_str}
     newdat = pd.DataFrame(lib)
     print("Successfully completed tide estimation for ", year)
-    return newdat
+    return lib
+
 
 
 seed = 8
