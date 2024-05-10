@@ -160,36 +160,35 @@ def tide_finder(df, td, year):
     print("Successfully completed tide estimation for ", year)
     return lib
 
+def data_org(buoy, tide, cnames):
+    df = pd.read_csv(buoy)
+    init = df.keys()[0]
+    use_data = df[init][1:]
+    
+    for val in use_data:
+        sep_vals = val.split(' ')
+        sift = filter(lambda item: item != '', sep_vals)
+        mdata = list(sift)
+        cnames['Month'].append(int(mdata[1]))
+        cnames['Day'].append(int(mdata[2]))
+        cnames['Hour'].append(int(mdata[3]))
+        cnames['Min'].append(int(mdata[4]))
+        cnames[anames[10]].append(float(mdata[8]))
+        cnames[anames[13]].append(float(mdata[9]))
+        cnames[anames[16]].append(float(mdata[10]))
+        cnames[anames[17]].append(int(mdata[11]))
+    
+    year = mdata[0]   
+    Z = pd.DataFrame(cnames)
+    tidedat = tide_finder(Z,tide,year)
+    return Z,tidedat
 
 
 seed = 8
-df = pd.read_csv('46253his.txt')
-anames = df.keys()[0].split(' ')
-shell = df.keys()[0]
-use_data = df[shell][1:]
 
 tide_file = pd.read_csv('Tides/2023RJsannual.txt')
 tide_data = tide_file[tide_file.keys()[0]]
-
-cnames = {'Month':[],'Day':[],'Hour':[],'Min':[],
-          anames[10]:[],anames[13]:[],anames[16]:[],anames[17]:[]}
 tide_inf = {'Month':[],'Day':[],'Hour':[],'Min':[],'H':[],'S':[],'TH':[]}
-for val in use_data:
-    sep_vals = val.split(' ')
-    sift = filter(lambda item: item != '', sep_vals)
-    mdata = list(sift)
-    cnames['Month'].append(int(mdata[1]))
-    cnames['Day'].append(int(mdata[2]))
-    cnames['Hour'].append(int(mdata[3]))
-    cnames['Min'].append(int(mdata[4]))
-    cnames[anames[10]].append(float(mdata[8]))
-    cnames[anames[13]].append(float(mdata[9]))
-    cnames[anames[16]].append(float(mdata[10]))
-    cnames[anames[17]].append(int(mdata[11]))
-
-    
-Z = pd.DataFrame(cnames)
-
 for date in tide_data:
     sep_vals = date.split('/')
     tide_inf['Month'].append(int(sep_vals[1]))
@@ -203,4 +202,36 @@ for date in tide_data:
     tide_inf['TH'].append(0)
 
 tidedf = pd.DataFrame(tide_inf)
+
+refdat = '46253his.txt'
+df = pd.read_csv(buoy)
+init = df.keys()[0]
+use_data = df[init][1:]
+
+buoy1 = '46219his.txt'
+buoy2 = '46232his.txt'
+buoy3 = '46251his.txt'
+bl = [buoy1, buoy2, buoy3]
+df = pd.read_csv(b1[0])
+anames = df.keys()[0].split(' ')
+
+cnames = {'Month':[],'Day':[],'Hour':[],'Min':[],
+          anames[10]:[],anames[13]:[],anames[16]:[],anames[17]:[]}
+
+tinf = {'Dirs':[],'STR':[]}
+
+shell = pd.DataFrame(cnames)
+
+for buoy in bl:
+    Z,tdat = data_org(buoy,tidedf,cnames)
+    cnames = pd.concat([cnames,Z])
+    tinf = pd.concat([tinf,tdat])
+
+cnames['Dirs'] = tinf['Dirs']
+cnames['STR'] = tinf['STR']
+    
+
+    
+
+
 
