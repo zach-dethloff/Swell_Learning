@@ -1,8 +1,39 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import math
 import tensorflow as tf
+from tensorflow import data as tf_data
+import keras
 import os
+
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.wrappers.scikit_learn import KerasClassifier
+from keras.utils import np_utils
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import KFold
+from sklearn.preprocessing import LabelEncoder
+from sklearn.pipeline import Pipeline
+
+from sklearn.metrics import confusion_matrix 
+from sklearn.model_selection import train_test_split
+from sklearn.utils import shuffle
+from sklearn.calibration import calibration_curve
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler()  # Normalized data to range from (0,1)
+from sklearn.metrics import (
+    precision_recall_curve,
+    plot_precision_recall_curve,
+    average_precision_score,
+    roc_curve,
+    auc,
+    roc_auc_score,
+    precision_recall_curve,
+    confusion_matrix,
+    classification_report
+)
+
 
 def build_simple_model():
     op = keras.optimizers.Adam()
@@ -160,34 +191,60 @@ def tide_finder(df, td, year):
     print("Successfully completed tide estimation for ", year)
     return lib
 
-def data_org(buoy, tide, cnames):
+def data_org(buoy, tnames):
     df = pd.read_csv(buoy)
     init = df.keys()[0]
     use_data = df[init][1:]
     
-    for val in use_data:
-        sep_vals = val.split(' ')
-        sift = filter(lambda item: item != '', sep_vals)
-        mdata = list(sift)
-        cnames['Month'].append(int(mdata[1]))
-        cnames['Day'].append(int(mdata[2]))
-        cnames['Hour'].append(int(mdata[3]))
-        cnames['Min'].append(int(mdata[4]))
-        cnames[anames[10]].append(float(mdata[8]))
-        cnames[anames[13]].append(float(mdata[9]))
-        cnames[anames[16]].append(float(mdata[10]))
-        cnames[anames[17]].append(int(mdata[11]))
+    if slim:
+        for val in use_data:
+            sep_vals = val.split(' ')
+            sift = filter(lambda item: item != '', sep_vals)
+            mdata = list(sift)
+            tnames['Month'].append(int(mdata[1]))
+            tnames['Day'].append(int(mdata[2]))
+            tnames['Hour'].append(int(mdata[3]))
+            tnames['Min'].append(int(mdata[4]))
+            tnames[anames[10]].append(float(mdata[8]))
+            tnames[anames[13]].append(float(mdata[9]))
+            tnames[anames[16]].append(float(mdata[10]))
+            tnames[anames[17]].append(int(mdata[11]))
+            
+    else:
+        for val in use_data:
+            sep_vals = val.split(' ')
+            sift = filter(lambda item: item != '', sep_vals)
+            mdata = list(sift)
+            tnames['Month'].append(int(mdata[1]))
+            tnames['Day'].append(int(mdata[2]))
+            tnames['Hour'].append(int(mdata[3]))
+            tnames['Min'].append(int(mdata[4]))
+            tnames['WDIR'].append(float(mdata[5]))
+            tnames['WSPD'].append(float(mdata[6]))
+            tnames['GST'].append(float(mdata[7]))
+            tnames['WVHT'].append(float(mdata[8]))
+            tnames['DPD'].append(float(mdata[9]))
+            tnames['APD'].append(float(mdata[10]))
+            tnames['MWD'].append(float(mdata[11]))
+            tnames['PRES'].append(float(mdata[12]))
+
+
     
-    year = mdata[0]   
-    Z = pd.DataFrame(cnames)
-    tidedat = tide_finder(Z,tide,year)
-    return Z,tidedat
+    A = pd.DataFrame(tnames)
+    return A
 
 
-seed = 8
+tidesource = ['Tides/2023RJsannual.txt','Tides/2022RJsannual.txt','Tides/2023RJsannual.txt','Tides/2022RJsannual.txt'
+              ,'Tides/2023SCannual.txt','Tides/2022SMannual.txt','Tides/2023SMannual.txt',
+             'Tides/2022LJannual.txt','Tides/2023LJannual.txt']
+tide_data = []
+for item in tidesource:
+    temp1 = pd.read_csv(item)
+    temp2 = temp1[temp1.keys()[0]]
+    for val in temp2:
+        tide_data.append(val)
 
-tide_file = pd.read_csv('Tides/2023RJsannual.txt')
-tide_data = tide_file[tide_file.keys()[0]]
+
 tide_inf = {'Month':[],'Day':[],'Hour':[],'Min':[],'H':[],'S':[],'TH':[]}
 for date in tide_data:
     sep_vals = date.split('/')
@@ -203,33 +260,156 @@ for date in tide_data:
 
 tidedf = pd.DataFrame(tide_inf)
 
-refdat = '46253his.txt'
-df = pd.read_csv(buoy)
-init = df.keys()[0]
-use_data = df[init][1:]
+refdat = 'SPS23.txt'
+df = pd.read_csv(refdat)
 
-buoy1 = '46219his.txt'
-buoy2 = '46232his.txt'
-buoy3 = '46251his.txt'
-bl = [buoy1, buoy2, buoy3]
-df = pd.read_csv(b1[0])
 anames = df.keys()[0].split(' ')
-
 cnames = {'Month':[],'Day':[],'Hour':[],'Min':[],
           anames[10]:[],anames[13]:[],anames[16]:[],anames[17]:[]}
 
-tinf = {'Dirs':[],'STR':[]}
+slim=True
+buoy1 = 'SPS23.txt'
+buoy2 = 'SPS22.txt'
+buoy3 = 'SP23.txt'
+buoy4 = 'SP22.txt'
+buoy5 = 'RBN23.txt'
+buoy6 = 'SM22.txt'
+buoy7 = 'SM23.txt'
+buoy8 = 'LJ22.txt'
+buoy9 = 'LJ23.txt'
+bl = [buoy1,buoy2,buoy3,buoy4,buoy5,buoy6,buoy7,buoy8,buoy9]
 
-shell = pd.DataFrame(cnames)
+fdata = {'Month':[],'Day':[],'Hour':[],'Min':[],
+      anames[10]:[],anames[13]:[],anames[16]:[],anames[17]:[]}
+
+fdata = pd.DataFrame(fdata)
+
+
+tinf = {'Dirs':[],'STR':[]}
+tinf = pd.DataFrame(tinf)
+
 
 for buoy in bl:
-    Z,tdat = data_org(buoy,tidedf,cnames)
-    cnames = pd.concat([cnames,Z])
-    tinf = pd.concat([tinf,tdat])
+    cnames = {'Month':[],'Day':[],'Hour':[],'Min':[],
+          anames[10]:[],anames[13]:[],anames[16]:[],anames[17]:[]}
+    shell = pd.DataFrame(cnames)
+    Z = data_org(buoy,cnames)
+    tdat = tide_finder(Z,tidedf,buoy)
+    body = pd.concat([shell,Z])
+    ttide = pd.DataFrame(tdat)
+    tinf = pd.concat([tinf,ttide],ignore_index=True)
+    fdata = pd.concat([fdata,body],ignore_index=True)
+  
+fdata['Dirs'] = tinf['Dirs']
+fdata['STR'] = tinf['STR']
+key_data = fdata['WVHT']
+fdata = fdata.drop(['WVHT'],axis=1)
 
-cnames['Dirs'] = tinf['Dirs']
-cnames['STR'] = tinf['STR']
+-----------------------------------------------------------
+
+slim=False
+source1 = 'SSR23.txt'
+source2 = 'SSR22.txt'
+source3 = 'SSR21.txt'
+source4 = 'SSR20.txt'
+
+source = [source1,source2,source3,source4]
+
+
+cnames = {'Month':[],'Day':[],'Hour':[],'Min':[],'WDIR':[],'WSPD':[],'GST':[],'WVHT':[],'DPD':[],'APD':[],
+         'MWD':[],'PRES':[]}
+
+
+fdata = pd.DataFrame(cnames)
+for year in source:
+    shell=pd.DataFrame(cnames)
+    temp = data_org(year,cnames)
+    fdata = pd.concat([fdata,temp],ignore_index=True)
+
+
+timedat = fdata[['Month','Day','Hour','Min']]
+fdata = fdata[fdata['WVHT']!=99]
+y = fdata['WVHT']
+fdata = fdata.drop(['WVHT','Month','Day','Hour','Min'],axis=1)
+
+
+fd = fdata
+
+y = key_data
+y = round(y,0)
+y = pd.DataFrame(y)
+mode=False
+cats = ['WVHT1','WVHT2','WVHT3']
+
+# i = 0
+# for val in y['WVHT']:
+#     if val==99:
+#         y.drop(i)
+#         fd.drop(i)
+#     i += 1
+
+
     
+fd = fd.reset_index(drop=True)
+y = y.reset_index(drop=True)
+
+print(len(fd),len(y))
+    
+c = []
+if mode:
+    for cat in cats:
+        j = 0
+        for val in fd[cat]:
+            if val==99:
+                c.append(j)
+            j += 1
+            
+# else:
+#     j = 0
+#     for val in fd['WVHT']:
+#         if val==99:
+#             c.append(j)
+#         j += 1
+        
+        
+# for val in c:
+#     fd = fd.drop(val)
+#     y = y.drop(val)
+    
+fd = fd.reset_index(drop=True)
+y = y.reset_index(drop=True)
+        
+#FEATURE_NAMES = fdata.keys()
+
+seed = 8
+
+
+X_train, X_test, Y_train, Y_test = train_test_split(fd, y, test_size=0.15,random_state=seed)
+
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
+
+
+shap = X_train.shape
+numBranches = shap[1]
+shap
+
+shap2 = Y_test.shape
+shap2
+
+from xgboost import XGBClassifier 
+mod = XGBClassifier()
+mod.fit(X_train,Y_train)
+  
+# accuracy on X_test 
+accuracy = mod.score(X_test, Y_test) 
+print(accuracy)
+  
+# creating a confusion matrix 
+y_pred = mod.predict(X_test)  
+confusion_matrix(Y_test, y_pred) 
+
+print(classification_report(Y_test,y_pred))
 
     
 
