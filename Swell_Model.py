@@ -35,35 +35,26 @@ from sklearn.metrics import (
 )
 
 
-def build_simple_model():
-    op = keras.optimizers.Adam()
-    model = Sequential
-    model.add(Dense(5,input_shape=5,activation='relu'))
-    model.add(Dense(5,activation='relu'))
-    model.add(Dense(1,activation='sigmoid'))
-    model.compile(loss='binary_crossentropy', optimizer=op,metrics=[])
-    return model
-
-def tide_finder(df, td, year): 
-    Dirs = []
-    t_str = []
+def tide_finder(df, td, year): # finds the direction and percentage of the tide change for each buoy reading
+    Dirs = [] # Direction
+    t_str = [] # Percentage which should correspond to the strenght of the tide change
     m = 1
-    ind_save = 0
+    ind_save = 0 # necessary for counting indices over the year
     print("Starting tide estimator for", year)
     while m < 13:
         print("Working on month", m)
         d = 1
-        boo1 = df['Month']==m
+        boo1 = df['Month']==m # Segments data for each month
         t0 = df[boo1]
-        ld = max(t0['Day'])
-        while d <= ld:
+        ld = max(t0['Day']) # Last day of that month
+        while d <= ld: # Generic method for segmenting data for the day
             boo2 = t0['Day']==d
             t2 = t0[boo2]
             Zmins = [t2['Hour']*60+t2['Min']][0] # This is for buoy data calcs
             boo1 = td['Month']==m # this and below is for tide data 
-            boo2 = td['Day']==d
-            t1 = td[boo1]
-            t2 = t1[boo2]
+            boo2 = td['Day']==d 
+            t1 = td[boo1] 
+            t2 = t1[boo2] # dataframe for the designated day
             #start_tide = t2['S'][:1].to_list()[0] 
             #end_tide = t2['S'][-1:].to_list()[0]
             # Finds tide turning points for the last tide the day before and the first tide the next day
